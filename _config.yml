@@ -1,0 +1,23 @@
+title: 中古プラント設備・機械の教科書
+description: >-
+  中古産業機械・プラント設備の選び方、メンテナンス、業界動向、法規制などを毎日発信する専門ブログ。
+  プラント設備工事会社aususが監修。
+baseurl: "/ausus-plant-blog"
+url: "https://toshiji39.github.io"
+lang: ja
+
+theme: minima
+minima:
+  skin: classic
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+permalink: /:year/:month/:day/:title/
+
+show_excerpts: true
+
+header_pages:
+  - about.md
