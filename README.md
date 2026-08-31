@@ -26,6 +26,11 @@ pip install -r scripts/requirements.txt
 python scripts/generate_post.py
 ```
 
+## 参考資料
+
+- 配管サイズ一覧表（呼び径リファレンス）: `/Users/sera/projects/ausus-used-plant/company/research/pipe-size-reference.md`
+  配管関連の記事を書く/レビューする際は、この表を該当記事に添付・引用する（2026-08-31、CEO指示）。現状は自動生成スクリプトに組み込んでいないため、配管がテーマの記事が出たタイミングで手動で反映すること。
+
 ## ローカルプレビュー（要Ruby/Bundler）
 
 ```bash
