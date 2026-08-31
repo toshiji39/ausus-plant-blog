@@ -19,6 +19,19 @@ RECENT_TITLES_LIMIT = 30
 
 TITLE_RE = re.compile(r'^title:\s*["\']?(.+?)["\']?\s*$', re.MULTILINE)
 SLUG_RE = re.compile(r'^slug:\s*["\']?([a-z0-9-]+)["\']?\s*$', re.MULTILINE)
+CATEGORY_RE = re.compile(r'^category:\s*["\']?([a-z-]+)["\']?\s*$', re.MULTILINE)
+
+CATEGORY_IMAGES = {
+    "compressor": ("compressor.svg", "コンプレッサーのイメージ図"),
+    "gearbox": ("gearbox.svg", "減速機のイメージ図"),
+    "piping": ("piping.svg", "配管設備のイメージ図"),
+    "used-equipment-check": ("used-equipment-check.svg", "中古設備チェックのイメージ図"),
+    "maintenance": ("maintenance.svg", "メンテナンス作業のイメージ図"),
+    "industry-trend": ("industry-trend.svg", "業界動向のイメージ図"),
+    "regulation": ("regulation.svg", "法規制・許認可のイメージ図"),
+    "safety": ("safety.svg", "安全対策のイメージ図"),
+}
+DEFAULT_IMAGE = ("used-equipment-check.svg", "中古産業機械・プラント設備のイメージ図")
 
 TOPIC_ANGLES = [
     "コンプレッサーの種類と選び方（往復式・スクリュー式・ターボ式などの構造・特徴比較）",
@@ -51,10 +64,11 @@ title: "記事タイトル"
 date: YYYY-MM-DD 07:00:00 +0900
 description: "120字以内の要約（メタディスクリプション用）"
 tags: [タグ1, タグ2, タグ3]
+category: "内容に最も近いものを1つだけ選ぶ（この8つの中から必ず選ぶこと。英字そのまま）: compressor / gearbox / piping / used-equipment-check / maintenance / industry-trend / regulation / safety"
 slug: "半角英数とハイフンのみのASCIIスラッグ"
 ---
 
-本文はfront matterの後に続けて書くこと。本文は800〜1400字程度の日本語、見出し(##)を2〜4個使って構造化すること。
+本文はfront matterの後に続けて書くこと。本文は800〜1400字程度の日本語、見出し(##)を2〜4個使って構造化し、最後に必ず「## まとめ」という見出しをつけて3〜4文程度でこの記事の要点をまとめること。
 """
 
 
@@ -94,6 +108,19 @@ def extract_slug(markdown: str) -> str:
     return f"post-{uuid.uuid4().hex[:8]}"
 
 
+def insert_image(markdown: str) -> str:
+    m = CATEGORY_RE.search(markdown)
+    category = m.group(1) if m else None
+    filename, alt = CATEGORY_IMAGES.get(category, DEFAULT_IMAGE)
+    image_md = f"![{alt}]({{{{ site.baseurl }}}}/assets/images/{filename})"
+
+    parts = markdown.split("---", 2)
+    if len(parts) != 3:
+        return markdown
+    front_matter, body = parts[1], parts[2].lstrip("\n")
+    return f"---{front_matter}---\n\n{image_md}\n\n{body}"
+
+
 def append_topics_log(title: str, date: str) -> None:
     TOPICS_LOG.parent.mkdir(parents=True, exist_ok=True)
     log = []
@@ -126,6 +153,8 @@ def main() -> None:
     if not markdown.startswith("---"):
         print("ERROR: model output did not start with front matter:\n" + markdown[:500], file=sys.stderr)
         sys.exit(1)
+
+    markdown = insert_image(markdown)
 
     title_match = TITLE_RE.search(markdown)
     title = title_match.group(1) if title_match else "無題"

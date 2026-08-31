@@ -1,0 +1,22 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="400" rx="28" fill="url(#grad)"/>
+
+  <!-- bars -->
+  <rect x="260" y="240" width="50" height="80" rx="6" fill="#ffffff" opacity="0.85"/>
+  <rect x="330" y="200" width="50" height="120" rx="6" fill="#ffffff" opacity="0.85"/>
+  <rect x="400" y="160" width="50" height="160" rx="6" fill="#ffffff" opacity="0.85"/>
+  <rect x="470" y="110" width="50" height="210" rx="6" fill="#ffffff" opacity="0.85"/>
+
+  <!-- baseline -->
+  <rect x="250" y="320" width="290" height="6" rx="3" fill="#ffffff" opacity="0.6"/>
+
+  <!-- trend line -->
+  <polyline points="270,235 355,190 425,150 495,95" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polygon points="495,95 520,100 500,120" fill="#ffffff"/>
+</svg>

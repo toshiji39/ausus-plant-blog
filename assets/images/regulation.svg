@@ -1,0 +1,25 @@
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="400" rx="28" fill="url(#grad)"/>
+
+  <!-- clipboard -->
+  <rect x="300" y="100" width="180" height="220" rx="14" fill="#ffffff"/>
+  <rect x="345" y="88" width="90" height="28" rx="8" fill="#94a3b8"/>
+  <rect x="325" y="150" width="130" height="10" rx="5" fill="#334155" opacity="0.5"/>
+  <rect x="325" y="180" width="130" height="10" rx="5" fill="#334155" opacity="0.5"/>
+  <rect x="325" y="210" width="90" height="10" rx="5" fill="#334155" opacity="0.5"/>
+
+  <!-- checkmarks -->
+  <path d="M330 250 l10 12 l20 -24" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M330 280 l10 12 l20 -24" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- seal -->
+  <circle cx="500" cy="260" r="46" fill="#f59e0b"/>
+  <circle cx="500" cy="260" r="46" fill="none" stroke="#ffffff" stroke-width="6" stroke-dasharray="6 6"/>
+  <path d="M482 262 l12 14 l24 -30" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
