@@ -101,6 +101,17 @@ def build_user_prompt(recent_titles: list[str]) -> str:
 """
 
 
+def strip_code_fence(text: str) -> str:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+
 def extract_slug(markdown: str) -> str:
     m = SLUG_RE.search(markdown)
     if m:
@@ -149,6 +160,7 @@ def main() -> None:
     )
 
     markdown = "".join(b.text for b in response.content if b.type == "text").strip()
+    markdown = strip_code_fence(markdown)
 
     if not markdown.startswith("---"):
         print("ERROR: model output did not start with front matter:\n" + markdown[:500], file=sys.stderr)
