@@ -2,7 +2,7 @@ name: Daily blog post
 
 on:
   schedule:
-    - cron: "0 22 * * *" # 22:00 UTC = 07:00 JST
+    - cron: "17 22 * * *" # 22:17 UTC ≈ 07:17 JST（毎時ちょうどは混雑して遅延・スキップされやすいため少しずらす）
   workflow_dispatch: {}
 
 permissions:
