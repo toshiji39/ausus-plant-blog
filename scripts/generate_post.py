@@ -16,6 +16,7 @@ POSTS_DIR = ROOT / "_posts"
 TOPICS_LOG = ROOT / "_data" / "topics-log.json"
 MODEL = "claude-sonnet-5"
 RECENT_TITLES_LIMIT = 30
+MAX_REWRITES = 1  # チェックNG時の書き直しは1回まで。それでもNGなら公開しない
 
 TITLE_RE = re.compile(r'^title:\s*["\']?(.+?)["\']?\s*$', re.MULTILINE)
 SLUG_RE = re.compile(r'^slug:\s*["\']?([a-z0-9-]+)["\']?\s*$', re.MULTILINE)
@@ -70,6 +71,50 @@ slug: "半角英数とハイフンのみのASCIIスラッグ"
 
 本文はfront matterの後に続けて書くこと。本文は800〜1400字程度の日本語、見出し(##)を2〜4個使って構造化し、最後に必ず「## まとめ」という見出しをつけて3〜4文程度でこの記事の要点をまとめること。
 """
+
+CHECK_SYSTEM_PROMPT = """あなたは中古産業機械・プラント設備ブログの公開前チェック担当です。執筆者とは別の立場で、下書きを公開してよいか判定します。
+文章の上手さは評価しません。以下のNG項目に当たる箇所があるかだけを見てください。
+
+## NG項目
+1. fabricated_episode: 特定の案件・顧客・日時・現場を思わせる具体的なエピソードを実話として書いている（例:「先日ある食品工場から〜の依頼があり」）。
+   「私がこれまで現場で見てきた中では〜」のような、一般化された経験としての語りはOK。
+2. unrealistic_business: 当社(ausus)が実際には扱わない業務を、扱っているかのように書いている。
+   - 中古配管を「商品として販売・買取」する話はNG（配管は工事サービスの対象。配管工事の技術解説はOK）
+   - 中古のデッキ・階段を「取り付ける」発注のような、実務上まず発生しないケースを日常的な話として書く
+3. unsupported_claim: 法令の条文・規格値・価格・統計などの具体的な数値や断定を、根拠や出典の示唆なしに書いている。
+   一般的に知られた技術的事実（例: 25A≒1インチ）はOK。
+4. risky_advice: 法令・安全・資格に関わる内容を「専門家や所管官庁に確認を」の一言なく断定的に助言している。
+
+## 判定
+- 1つでも当てはまれば verdict は "fail"。迷う場合も "fail" にして理由を書く
+- 当てはまらなければ "pass"、issues は空配列
+- quote には該当箇所を本文からそのまま短く引用する
+"""
+
+CHECK_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdict": {"type": "string", "enum": ["pass", "fail"]},
+        "issues": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "rule": {
+                        "type": "string",
+                        "enum": ["fabricated_episode", "unrealistic_business", "unsupported_claim", "risky_advice"],
+                    },
+                    "quote": {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["rule", "quote", "reason"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["verdict", "issues"],
+    "additionalProperties": False,
+}
 
 
 def load_recent_titles(limit: int) -> list[str]:
@@ -132,6 +177,67 @@ def insert_image(markdown: str) -> str:
     return f"---{front_matter}---\n\n{image_md}\n\n{body}"
 
 
+def generate(client: anthropic.Anthropic, user_prompt: str) -> str:
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4000,
+        system=SYSTEM_PROMPT,
+        output_config={"effort": "medium"},
+        messages=[{"role": "user", "content": user_prompt}],
+    )
+    markdown = "".join(b.text for b in response.content if b.type == "text").strip()
+    return strip_code_fence(markdown)
+
+
+def format_issues(markdown: str) -> list[dict]:
+    """機械的に判定できる形式チェック。"""
+    issues = []
+    if not markdown.startswith("---"):
+        issues.append({"rule": "format", "quote": markdown[:80], "reason": "front matterで始まっていない"})
+    if "## まとめ" not in markdown:
+        issues.append({"rule": "format", "quote": "", "reason": "「## まとめ」見出しがない"})
+    return issues
+
+
+def check(client: anthropic.Anthropic, markdown: str) -> list[dict]:
+    """公開前チェック。問題がなければ空リストを返す。"""
+    issues = format_issues(markdown)
+    if issues:
+        return issues
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4000,
+        system=CHECK_SYSTEM_PROMPT,
+        output_config={
+            "effort": "high",
+            "format": {"type": "json_schema", "schema": CHECK_SCHEMA},
+        },
+        messages=[{"role": "user", "content": f"以下の下書きを判定してください。\n\n{markdown}"}],
+    )
+    if response.stop_reason != "end_turn":
+        return [{"rule": "checker_error", "quote": "", "reason": f"チェックが完了しなかった (stop_reason={response.stop_reason})"}]
+    text = next(b.text for b in response.content if b.type == "text")
+    result = json.loads(text)
+    if result["verdict"] == "pass":
+        return []
+    return result["issues"] or [{"rule": "unknown", "quote": "", "reason": "failだが指摘が空"}]
+
+
+def rewrite_prompt(user_prompt: str, markdown: str, issues: list[dict]) -> str:
+    listed = "\n".join(f"- [{i['rule']}] 「{i['quote']}」: {i['reason']}" for i in issues)
+    return f"""{user_prompt}
+
+## 前回の下書きは公開前チェックで差し戻されました
+指摘:
+{listed}
+
+指摘箇所を削除または一般的な技術解説に置き換え、同じテーマで全文を書き直してください。
+
+前回の下書き:
+{markdown}
+"""
+
+
 def append_topics_log(title: str, date: str) -> None:
     TOPICS_LOG.parent.mkdir(parents=True, exist_ok=True)
     log = []
@@ -151,19 +257,20 @@ def main() -> None:
     recent_titles = load_recent_titles(RECENT_TITLES_LIMIT)
     user_prompt = build_user_prompt(recent_titles)
 
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=4000,
-        system=SYSTEM_PROMPT,
-        output_config={"effort": "medium"},
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    markdown = generate(client, user_prompt)
+    issues = check(client, markdown)
+    for attempt in range(MAX_REWRITES):
+        if not issues:
+            break
+        print(f"Check failed (attempt {attempt + 1}), rewriting:", file=sys.stderr)
+        print(json.dumps(issues, ensure_ascii=False, indent=2), file=sys.stderr)
+        markdown = generate(client, rewrite_prompt(user_prompt, markdown, issues))
+        issues = check(client, markdown)
 
-    markdown = "".join(b.text for b in response.content if b.type == "text").strip()
-    markdown = strip_code_fence(markdown)
-
-    if not markdown.startswith("---"):
-        print("ERROR: model output did not start with front matter:\n" + markdown[:500], file=sys.stderr)
+    if issues:
+        print("ERROR: post rejected by pre-publish check. Nothing was published.", file=sys.stderr)
+        print(json.dumps(issues, ensure_ascii=False, indent=2), file=sys.stderr)
+        print("---- rejected draft ----\n" + markdown, file=sys.stderr)
         sys.exit(1)
 
     markdown = insert_image(markdown)
